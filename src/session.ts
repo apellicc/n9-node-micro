@@ -12,6 +12,8 @@ async function loadSession(req): Promise<void> {
 	} catch (err) {
 		throw new N9Error('session-header-is-invalid', 401)
 	}
+	if (req.session.sub && !req.session.userId)
+		req.session.userId = req.session.sub
 	if (!req.session.userId) {
 		throw new N9Error('session-header-has-no-userId', 401)
 	}

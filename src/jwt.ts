@@ -5,6 +5,9 @@ async function generateJWT(session: any): Promise<string> {
 	if (!session) {
 		throw new N9Error('session-is-empty', 400)
 	}
+	if (session.sub && !session.userId)
+		session.userId = session.sub
+
 	if (!session.userId) {
 		throw new N9Error('session-has-no-userId', 400)
 	}
@@ -40,6 +43,8 @@ async function loadSession(req, getToken?: (req) => string): Promise<void> {
 	} catch (err) {
 		throw new N9Error('invalid-token', 401)
 	}
+	if (session.sub && !session.userId)
+		session.userId = session.sub
 	// Verify session.userId
 	/* istanbul ignore if */
 	if (!session.userId) {

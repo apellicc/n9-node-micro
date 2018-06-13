@@ -1,5 +1,5 @@
 {
-  "name": "@neo9/n9-node-micro",
+  "name": "n9-node-micro",
   "version": "4.5.1",
   "description": "Node MicroService Module",
   "main": "dist/src/index.js",
@@ -22,7 +22,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/neo9/n9-node-micro"
+    "url": "git+https://github.com/apellicc/n9-node-micro"
   },
   "author": "Sebastien Chopin <sebastien.chopin@neo9.fr>",
   "dependencies": {
