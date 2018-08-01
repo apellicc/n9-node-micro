@@ -100,14 +100,24 @@ export default async function({ path, log }: N9Micro.Options, app: Express) {
 			r.handler = [...handler, ...r.handler]
 			// Add route in express app, see http://expressjs.com/fr/4x/api.html#router.route
 			r.method.forEach((method) => {
-				let v = Array.isArray(r.version) ? r.version.join('|') : (r.version || '*')
+				let optionalApplication = ''
+				let application = Array.isArray(r.application) ? r.application.join('|') : r.application
+				if (application === '*') {
+					application = '[^/]*'
+					optionalApplication = '?'
+				}
 				let optional = ''
+				let v = Array.isArray(r.version) ? r.version.join('|') : (r.version || '*')
 				// If no version defined or accept any version
 				if (v === '*') {
 					v = 'v\\d+'
 					optional = '?'
 				}
-				moduleRouter.route(`/:version(${v})${optional}${r.path}`)[method](r.handler)
+				if (!application) {
+					moduleRouter.route(`/:version(${v})${optional}${r.path}`)[method](r.handler)
+				} else {
+					moduleRouter.route(`/:version(${v})${optional}\/:application(${application})${optionalApplication}${r.path}`)[method](r.handler)
+				}
 			})
 			return true
 		})
@@ -115,35 +125,51 @@ export default async function({ path, log }: N9Micro.Options, app: Express) {
 		app.use(moduleRouter)
 		// Add routes definitions to /routes
 		routes = routes.concat(...moduleRoutes.map((r) => {
+			// Force application to be an array
+			const applications = (!Array.isArray(r.application) ? [r.application || '*'] : r.application)
 			// Force version to be an array
 			const versions = (!Array.isArray(r.version) ? [r.version || '*'] : r.version)
 			// Force documentation key to be defined
 			r.documentation = r.documentation || {}
 			// Return a route definition for each version
-			return [].concat(...versions.map((version) => {
-				return r.method.map((method) => {
-					const module = routeFile.split('/')[0]
-					return {
-						module,
-						name: r.name || `${r.method}${module[0].toUpperCase()}${module.slice(1)}`,
-						description: r.documentation.description || '',
-						version,
-						method,
-						path: (version !== '*' ? `/${version}${r.path}` : r.path),
-						session: r.session || false,
-						can: r.can || false, // Add acl can route info
-						is: r.is || false, // Add acl is route info
-						withAcl: r.withAcl || false, // Populate acl object on response
-						validate: {
-							headers: r.validate && r.validate.headers ? joiToJson(r.validate.headers) : undefined,
-							cookies: r.validate && r.validate.headers ? joiToJson(r.validate.cookies) : undefined,
-							params: r.validate && r.validate.params ? joiToJson(r.validate.params) : undefined,
-							query: r.validate && r.validate.query ? joiToJson(r.validate.query) : undefined,
-							body: r.validate && r.validate.body ? joiToJson(r.validate.body) : undefined
-						},
-						response: r.documentation.response
-					}
-				})
+			return [].concat(...applications.map((application) => {
+				return  [].concat(...versions.map((version) => {
+					return r.method.map((method) => {
+						const module = routeFile.split('/')[0]
+						let pathWithParams
+
+						if (application !== '*' && version !== '*')
+							pathWithParams = `/${application}/${version}${r.path}`
+						else if (application !== '*' && version === '*')
+							pathWithParams = `/${application}${r.path}`
+						else if (application === '*' && version !== '*')
+							pathWithParams = `/${version}${r.path}`
+						else
+							pathWithParams = `${r.path}`
+
+						return {
+							module,
+							name: r.name || `${r.method}${module[0].toUpperCase()}${module.slice(1)}`,
+							description: r.documentation.description || '',
+							application,
+							version,
+							method,
+							path: pathWithParams,
+							session: r.session || false,
+							can: r.can || false, // Add acl can route info
+							is: r.is || false, // Add acl is route info
+							withAcl: r.withAcl || false, // Populate acl object on response
+							validate: {
+								headers: r.validate && r.validate.headers ? joiToJson(r.validate.headers) : undefined,
+								cookies: r.validate && r.validate.headers ? joiToJson(r.validate.cookies) : undefined,
+								params: r.validate && r.validate.params ? joiToJson(r.validate.params) : undefined,
+								query: r.validate && r.validate.query ? joiToJson(r.validate.query) : undefined,
+								body: r.validate && r.validate.body ? joiToJson(r.validate.body) : undefined
+							},
+							response: r.documentation.response
+						}
+					})
+				}))
 			}))
 		}))
 	})
